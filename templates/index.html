@@ -87,22 +87,234 @@
             touch-action: none;
             user-select: none;
             -webkit-touch-callout: none;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
         }
 
         .table-item.dragging {
-            opacity: 0.7;
+            opacity: 0.85;
             z-index: 1000;
             cursor: grabbing;
-            transform: scale(1.05);
+            transform: scale(1.08);
+            filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.4));
         }
 
-        .chair {
-            background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
-            border-radius: 2px 2px 4px 4px;
+        /* Realistic Wood Table Surface */
+        .table-surface {
+            background: linear-gradient(135deg, #8B5A2B 0%, #A0522D 25%, #8B4513 50%, #A0522D 75%, #8B5A2B 100%);
+            background-size: 100% 100%;
+            border-radius: 10px;
+            position: relative;
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+                0 4px 0 #5D3A1A,
+                0 6px 0 #4A2E14,
+                0 8px 15px rgba(0, 0, 0, 0.3);
         }
 
-        .dark .chair {
-            background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
+        .table-surface::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(90deg,
+                    transparent,
+                    transparent 8px,
+                    rgba(139, 69, 19, 0.15) 8px,
+                    rgba(139, 69, 19, 0.15) 10px);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .table-surface::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg,
+                    rgba(255, 255, 255, 0.15) 0%,
+                    transparent 40%,
+                    transparent 60%,
+                    rgba(0, 0, 0, 0.1) 100%);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .dark .table-surface {
+            background: linear-gradient(135deg, #6B4423 0%, #7B4E2A 25%, #5D3A1A 50%, #7B4E2A 75%, #6B4423 100%);
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.1),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+                0 4px 0 #3D2A12,
+                0 6px 0 #2D1E0C,
+                0 8px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Status Glow Rings - FORCING to override table-surface */
+        .status-free {
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+                0 4px 0 #5D3A1A,
+                0 6px 0 #4A2E14,
+                0 8px 15px rgba(0, 0, 0, 0.3),
+                0 0 0 5px rgba(16, 185, 129, 1),
+                0 0 35px rgba(16, 185, 129, 0.7) !important;
+        }
+
+        .status-reserved {
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+                0 4px 0 #5D3A1A,
+                0 6px 0 #4A2E14,
+                0 8px 15px rgba(0, 0, 0, 0.3),
+                0 0 0 5px rgba(244, 63, 94, 1),
+                0 0 35px rgba(244, 63, 94, 0.7) !important;
+            animation: pulse-reserved 2s ease-in-out infinite;
+        }
+
+        .status-occupied {
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+                0 4px 0 #5D3A1A,
+                0 6px 0 #4A2E14,
+                0 8px 15px rgba(0, 0, 0, 0.3),
+                0 0 0 5px rgba(245, 158, 11, 1),
+                0 0 35px rgba(245, 158, 11, 0.7) !important;
+        }
+
+        /* Alignment Guide Lines */
+        .align-guide {
+            position: absolute;
+            background: rgba(99, 102, 241, 0.8);
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .align-guide.horizontal {
+            height: 2px;
+            left: 0;
+            right: 0;
+        }
+
+        .align-guide.vertical {
+            width: 2px;
+            top: 0;
+            bottom: 0;
+        }
+
+        .align-guide::before {
+            content: '';
+            position: absolute;
+            background: inherit;
+        }
+
+        @keyframes pulse-reserved {
+
+            0%,
+            100% {
+                box-shadow:
+                    inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+                    0 4px 0 #5D3A1A,
+                    0 6px 0 #4A2E14,
+                    0 8px 15px rgba(0, 0, 0, 0.3),
+                    0 0 0 4px rgba(244, 63, 94, 0.6),
+                    0 0 25px rgba(244, 63, 94, 0.4);
+            }
+
+            50% {
+                box-shadow:
+                    inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+                    0 4px 0 #5D3A1A,
+                    0 6px 0 #4A2E14,
+                    0 8px 15px rgba(0, 0, 0, 0.3),
+                    0 0 0 5px rgba(244, 63, 94, 0.8),
+                    0 0 35px rgba(244, 63, 94, 0.6);
+            }
+        }
+
+        /* Realistic 3D Chairs - LARGER */
+        .chair-3d {
+            width: 32px;
+            height: 22px;
+            position: relative;
+        }
+
+        .chair-3d .seat {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 28px;
+            height: 14px;
+            background: linear-gradient(180deg, #8B5A2B 0%, #6B4423 100%);
+            border-radius: 5px 5px 3px 3px;
+            box-shadow:
+                inset 0 2px 3px rgba(255, 255, 255, 0.25),
+                0 3px 0 #4A2E14,
+                0 4px 6px rgba(0, 0, 0, 0.35);
+        }
+
+        .chair-3d .back {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 26px;
+            height: 10px;
+            background: linear-gradient(180deg, #A0522D 0%, #8B4513 100%);
+            border-radius: 5px 5px 2px 2px;
+            box-shadow:
+                inset 0 1px 3px rgba(255, 255, 255, 0.2),
+                0 2px 3px rgba(0, 0, 0, 0.25);
+        }
+
+        .dark .chair-3d .seat {
+            background: linear-gradient(180deg, #7B4E2A 0%, #5D3A1A 100%);
+            box-shadow:
+                inset 0 2px 3px rgba(255, 255, 255, 0.1),
+                0 3px 0 #3D2A12,
+                0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .dark .chair-3d .back {
+            background: linear-gradient(180deg, #8B5A2B 0%, #6B4423 100%);
+        }
+
+        /* Bottom chairs (rotated 180deg) */
+        .chair-3d.bottom {
+            transform: rotate(180deg);
+        }
+
+        /* Status Badge */
+        .status-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        .status-badge.free {
+            background: linear-gradient(135deg, #10B981, #059669);
+        }
+
+        .status-badge.reserved {
+            background: linear-gradient(135deg, #F43F5E, #E11D48);
+        }
+
+        .status-badge.occupied {
+            background: linear-gradient(135deg, #F59E0B, #D97706);
         }
 
         /* Mobile Responsive Improvements */
@@ -485,45 +697,68 @@
                 el.style.top = `${table.y}px`;
                 el.dataset.id = table.id;
 
-                const width = table.capacity <= 2 ? 90 : table.capacity <= 4 ? 120 : table.capacity <= 6 ? 150 : 180;
-                const height = 70;
+                const width = table.capacity <= 2 ? 100 : table.capacity <= 4 ? 130 : table.capacity <= 6 ? 160 : 190;
+                const height = 75;
 
                 const statusConfig = {
-                    free: { border: 'border-emerald-400', hover: 'hover:ring-2 hover:ring-indigo-400', indicator: 'bg-emerald-500' },
-                    reserved: { border: 'border-rose-400', hover: '', indicator: 'bg-rose-500' },
-                    occupied: { border: 'border-amber-400', hover: '', indicator: 'bg-amber-500' }
+                    free: {
+                        class: 'status-free',
+                        badge: 'free',
+                        icon: 'fa-check',
+                        label: 'Libre'
+                    },
+                    reserved: {
+                        class: 'status-reserved',
+                        badge: 'reserved',
+                        icon: 'fa-calendar-check',
+                        label: 'Reservada'
+                    },
+                    occupied: {
+                        class: 'status-occupied',
+                        badge: 'occupied',
+                        icon: 'fa-utensils',
+                        label: 'Ocupada'
+                    }
                 };
                 const config = statusConfig[table.status] || statusConfig.free;
-
                 const canDrag = Utils.canEdit();
 
                 el.innerHTML = `
-                <div class="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    ${this.generateChairs(Math.ceil(table.capacity / 2))}
+                <!-- Top chairs -->
+                <div class="absolute -top-7 left-1/2 -translate-x-1/2 flex gap-1">
+                    ${this.generateChairs(Math.ceil(table.capacity / 2), false)}
                 </div>
-                <div class="wood-texture rounded-lg border-2 ${config.border} ${config.hover} shadow-lg transition-all flex items-center justify-center relative overflow-hidden"
+                
+                <!-- Table surface -->
+                <div class="table-surface ${config.class} flex items-center justify-center relative transition-all hover:scale-[1.02]"
                      style="width: ${width}px; height: ${height}px;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 pointer-events-none"></div>
-                    <div class="absolute top-1.5 right-1.5">
-                        <div class="w-2.5 h-2.5 rounded-full ${config.indicator} shadow"></div>
+                    
+                    <!-- Status badge -->
+                    <div class="status-badge ${config.badge}">
+                        <i class="fa-solid ${config.icon}"></i>
                     </div>
-                    <div class="text-center z-10">
-                        <div class="font-semibold text-sm text-amber-900 dark:text-amber-100">${table.name}</div>
-                        <div class="text-xs text-amber-800/70 dark:text-amber-200/70">${table.capacity} personas</div>
+                    
+                    <!-- Table content -->
+                    <div class="text-center z-10 px-2">
+                        <div class="font-bold text-base text-white drop-shadow-md">${table.name}</div>
+                        <div class="text-xs text-white/80 font-medium">${table.capacity} pax</div>
+                        <div class="text-[10px] text-white/60 mt-0.5 font-medium uppercase tracking-wide">${config.label}</div>
                     </div>
                 </div>
-                <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    ${this.generateChairs(Math.floor(table.capacity / 2))}
+                
+                <!-- Bottom chairs -->
+                <div class="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1">
+                    ${this.generateChairs(Math.floor(table.capacity / 2), true)}
                 </div>
             `;
 
-                // Tooltip
+                // Tooltip with reservation info
                 if (table.status === 'reserved' && table.reservation_info) {
-                    el.title = `${table.reservation_info.customer_name} - ${table.reservation_info.time}`;
+                    el.title = `🗓️ ${table.reservation_info.customer_name}\n⏰ ${table.reservation_info.time}\n👥 ${table.reservation_info.guests || table.capacity} personas`;
                 } else if (table.status === 'occupied') {
-                    el.title = 'Mesa ocupada';
+                    el.title = '🍽️ Mesa actualmente ocupada';
                 } else {
-                    el.title = `${table.name} - Disponible`;
+                    el.title = `✅ ${table.name} - Disponible (${table.capacity} personas)`;
                 }
 
                 // Events
@@ -536,10 +771,13 @@
                 return el;
             },
 
-            generateChairs(count) {
+            generateChairs(count, isBottom) {
                 let html = '';
                 for (let i = 0; i < count; i++) {
-                    html += '<div class="chair w-4 h-3 shadow"></div>';
+                    html += `<div class="chair-3d ${isBottom ? 'bottom' : ''}">
+                        <div class="back"></div>
+                        <div class="seat"></div>
+                    </div>`;
                 }
                 return html;
             }
@@ -622,8 +860,15 @@
                 }
 
                 if (DragHandler.hasMoved) {
-                    const newX = Math.max(0, DragHandler.initialLeft + dx);
-                    const newY = Math.max(0, DragHandler.initialTop + dy);
+                    let newX = Math.max(0, DragHandler.initialLeft + dx);
+                    let newY = Math.max(0, DragHandler.initialTop + dy);
+
+                    // Snap alignment
+                    const snapResult = DragHandler.checkSnapAlignment(newX, newY);
+                    newX = snapResult.x;
+                    newY = snapResult.y;
+                    DragHandler.showGuides(snapResult.guides);
+
                     requestAnimationFrame(() => {
                         if (DragHandler.activeElement) {
                             DragHandler.activeElement.style.left = `${newX}px`;
@@ -631,6 +876,100 @@
                         }
                     });
                 }
+            },
+
+            SNAP_THRESHOLD: 15,
+
+            checkSnapAlignment(x, y) {
+                const currentId = DragHandler.currentTable.id;
+                const container = document.getElementById('floor-plan');
+                const containerRect = container.getBoundingClientRect();
+                const guides = [];
+                let snappedX = x;
+                let snappedY = y;
+
+                // Get current element dimensions
+                const el = DragHandler.activeElement;
+                const elWidth = el.offsetWidth || 130;
+                const elHeight = el.offsetHeight || 100;
+
+                // Calculate snap points for current table
+                const currentPoints = {
+                    left: x,
+                    centerX: x + elWidth / 2,
+                    right: x + elWidth,
+                    top: y,
+                    centerY: y + elHeight / 2,
+                    bottom: y + elHeight
+                };
+
+                // Check against all other tables
+                State.tables.filter(t => t.id !== currentId && t.zone === State.currentZone).forEach(table => {
+                    const otherEl = document.getElementById(`table-${table.id}`);
+                    if (!otherEl) return;
+
+                    const otherWidth = otherEl.offsetWidth || 130;
+                    const otherHeight = otherEl.offsetHeight || 100;
+
+                    const otherPoints = {
+                        left: table.x,
+                        centerX: table.x + otherWidth / 2,
+                        right: table.x + otherWidth,
+                        top: table.y,
+                        centerY: table.y + otherHeight / 2,
+                        bottom: table.y + otherHeight
+                    };
+
+                    // Horizontal alignment (Y axis)
+                    if (Math.abs(currentPoints.top - otherPoints.top) < DragHandler.SNAP_THRESHOLD) {
+                        snappedY = otherPoints.top;
+                        guides.push({ type: 'horizontal', pos: otherPoints.top });
+                    } else if (Math.abs(currentPoints.centerY - otherPoints.centerY) < DragHandler.SNAP_THRESHOLD) {
+                        snappedY = otherPoints.centerY - elHeight / 2;
+                        guides.push({ type: 'horizontal', pos: otherPoints.centerY });
+                    } else if (Math.abs(currentPoints.bottom - otherPoints.bottom) < DragHandler.SNAP_THRESHOLD) {
+                        snappedY = otherPoints.bottom - elHeight;
+                        guides.push({ type: 'horizontal', pos: otherPoints.bottom });
+                    }
+
+                    // Vertical alignment (X axis)
+                    if (Math.abs(currentPoints.left - otherPoints.left) < DragHandler.SNAP_THRESHOLD) {
+                        snappedX = otherPoints.left;
+                        guides.push({ type: 'vertical', pos: otherPoints.left });
+                    } else if (Math.abs(currentPoints.centerX - otherPoints.centerX) < DragHandler.SNAP_THRESHOLD) {
+                        snappedX = otherPoints.centerX - elWidth / 2;
+                        guides.push({ type: 'vertical', pos: otherPoints.centerX });
+                    } else if (Math.abs(currentPoints.right - otherPoints.right) < DragHandler.SNAP_THRESHOLD) {
+                        snappedX = otherPoints.right - elWidth;
+                        guides.push({ type: 'vertical', pos: otherPoints.right });
+                    }
+                });
+
+                return { x: snappedX, y: snappedY, guides };
+            },
+
+            showGuides(guides) {
+                // Remove existing guides
+                document.querySelectorAll('.align-guide').forEach(g => g.remove());
+
+                const container = document.getElementById('floor-plan');
+
+                guides.forEach(guide => {
+                    const el = document.createElement('div');
+                    el.className = `align-guide ${guide.type}`;
+
+                    if (guide.type === 'horizontal') {
+                        el.style.top = `${guide.pos}px`;
+                    } else {
+                        el.style.left = `${guide.pos}px`;
+                    }
+
+                    container.appendChild(el);
+                });
+            },
+
+            clearGuides() {
+                document.querySelectorAll('.align-guide').forEach(g => g.remove());
             },
 
             moveTouch: (e) => {
@@ -665,6 +1004,7 @@
                 document.removeEventListener('touchmove', DragHandler.moveTouch);
                 document.removeEventListener('touchend', DragHandler.endTouch);
                 document.removeEventListener('touchcancel', DragHandler.endTouch);
+                DragHandler.clearGuides();
             },
 
             end: async () => {
