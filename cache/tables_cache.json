@@ -1,0 +1,77 @@
+{
+  "timestamp": "2025-12-14T18:01:27.386133",
+  "data": {
+    "tables": [
+      {
+        "id": "1",
+        "name": "Mesa 1",
+        "zone": "interior",
+        "x": 100,
+        "y": 100,
+        "status": "free",
+        "capacity": 4,
+        "rotation": 0,
+        "reservation_info": null
+      },
+      {
+        "id": "2",
+        "name": "Mesa 2",
+        "zone": "interior",
+        "x": 300,
+        "y": 100,
+        "status": "reserved",
+        "capacity": 2,
+        "rotation": 45,
+        "reservation_info": {
+          "customer_name": "Juan Pérez",
+          "time": "20:00",
+          "people": 2
+        }
+      },
+      {
+        "id": "3",
+        "name": "Mesa 3",
+        "zone": "interior",
+        "x": 500,
+        "y": 100,
+        "status": "free",
+        "capacity": 6,
+        "rotation": 0,
+        "reservation_info": null
+      },
+      {
+        "id": "4",
+        "name": "Terraza 1",
+        "zone": "terraza",
+        "x": 150,
+        "y": 150,
+        "status": "free",
+        "capacity": 4,
+        "rotation": 90,
+        "reservation_info": null
+      },
+      {
+        "id": "5",
+        "name": "Terraza 2",
+        "zone": "terraza",
+        "x": 350,
+        "y": 150,
+        "status": "free",
+        "capacity": 2,
+        "rotation": 0,
+        "reservation_info": null
+      },
+      {
+        "id": "6",
+        "name": "Mesa",
+        "zone": "interior",
+        "x": 97.0,
+        "y": 251.0,
+        "capacity": 6,
+        "rotation": 0,
+        "status": "free",
+        "reservation_info": null
+      }
+    ]
+  }
+}

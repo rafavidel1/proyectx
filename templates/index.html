@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floor Plan Manager</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        wood: { light: '#d4a574', DEFAULT: '#8b5a2b', dark: '#5c3d2e' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .grid-pattern {
+            background-image:
+                linear-gradient(rgba(100, 116, 139, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 116, 139, 0.05) 1px, transparent 1px);
+            background-size: 25px 25px;
+        }
+
+        .dark .grid-pattern {
+            background-image:
+                linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+        }
+
+        .wood-texture {
+            background: linear-gradient(135deg, #d4a574 0%, #c49a6c 25%, #b8956a 50%, #c9a070 75%, #d4a574 100%);
+        }
+
+        .dark .wood-texture {
+            background: linear-gradient(135deg, #8b6914 0%, #7a5c12 25%, #6d5210 50%, #7a5c12 75%, #8b6914 100%);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+        }
+
+        .dark .glass {
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .animate-slideUp {
+            animation: slideUp 0.2s ease-out;
+        }
+
+        .table-item {
+            touch-action: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .table-item.dragging {
+            opacity: 0.7;
+            z-index: 1000;
+            cursor: grabbing;
+            transform: scale(1.05);
+        }
+
+        .chair {
+            background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
+            border-radius: 2px 2px 4px 4px;
+        }
+
+        .dark .chair {
+            background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
+        }
+
+        /* Mobile Responsive Improvements */
+        @media (max-width: 640px) {
+            .table-item {
+                transform: scale(0.85);
+            }
+
+            #floor-plan {
+                min-width: 100% !important;
+            }
+
+            .zone-btn,
+            .shift-btn {
+                padding: 0.4rem 0.6rem;
+                font-size: 0.75rem;
+            }
+        }
+
+        /* Touch-friendly buttons */
+        button,
+        input,
+        select,
+        textarea {
+            min-height: 44px;
+        }
+
+        /* Smooth scrolling */
+        #map-container {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 dark:bg-slate-900 min-h-screen transition-colors duration-300">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+        <div class="text-center">
+            <div
+                class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4">
+            </div>
+            <p class="text-slate-500 dark:text-slate-400">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="hidden">
+
+        <!-- Header -->
+        <header
+            class="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
+            <div class="max-w-full mx-auto px-4 py-3">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+
+                    <!-- Logo -->
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                            <i class="fa-solid fa-utensils text-white"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-slate-800 dark:text-white">Floor Plan Manager</h1>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Sistema de Gestión de
+                                Mesas</p>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex flex-wrap items-center gap-2 lg:gap-3">
+                        <!-- Date Picker -->
+                        <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2">
+                            <i class="fa-solid fa-calendar text-indigo-500 text-sm"></i>
+                            <input type="date" id="date-picker"
+                                class="bg-transparent border-none text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer w-32">
+                        </div>
+
+                        <!-- Zone Buttons -->
+                        <div class="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
+                            <button data-zone="interior"
+                                class="zone-btn px-3 py-2 text-sm font-medium bg-indigo-600 text-white">
+                                <i class="fa-solid fa-house mr-1 hidden sm:inline"></i>Interior
+                            </button>
+                            <button data-zone="terraza"
+                                class="zone-btn px-3 py-2 text-sm font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+                                <i class="fa-solid fa-tree mr-1 hidden sm:inline"></i>Terraza
+                            </button>
+                        </div>
+
+                        <!-- Shift Selector -->
+                        <div class="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
+                            <button data-shift="mediodia"
+                                class="shift-btn px-3 py-2 text-sm font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+                                <i class="fa-solid fa-sun mr-1 hidden sm:inline"></i>Mediodía
+                            </button>
+                            <button data-shift="noche"
+                                class="shift-btn px-3 py-2 text-sm font-medium bg-amber-500 text-white">
+                                <i class="fa-solid fa-moon mr-1 hidden sm:inline"></i>Noche
+                            </button>
+                        </div>
+
+                        <!-- Admin Controls (hidden for viewers) -->
+                        <div id="admin-controls" class="hidden flex items-center gap-2">
+                            <button id="btn-add-table"
+                                class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg flex items-center gap-1 transition-colors">
+                                <i class="fa-solid fa-plus"></i>
+                                <span class="hidden sm:inline">Nueva Mesa</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- User Controls -->
+                    <div class="flex items-center gap-2 lg:gap-3">
+                        <!-- Legend -->
+                        <div
+                            class="hidden xl:flex items-center gap-3 text-xs border-r border-slate-200 dark:border-slate-600 pr-3">
+                            <div class="flex items-center gap-1.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                                <span class="text-slate-500 dark:text-slate-400">Libre</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
+                                <span class="text-slate-500 dark:text-slate-400">Reservada</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                                <span class="text-slate-500 dark:text-slate-400">Ocupada</span>
+                            </div>
+                        </div>
+
+                        <!-- Sync Status -->
+                        <div id="sync-indicator"
+                            class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-xs"
+                            title="Sincronización automática activa">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <span class="hidden sm:inline text-emerald-700 dark:text-emerald-300">Live</span>
+                        </div>
+
+                        <!-- Role Badge -->
+                        <div id="role-badge"
+                            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                            <i id="role-icon" class="fa-solid fa-user"></i>
+                            <span id="role-text">Usuario</span>
+                        </div>
+
+                        <!-- Dark Mode -->
+                        <button id="dark-toggle"
+                            class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                            <i class="fa-solid fa-moon dark:hidden"></i>
+                            <i class="fa-solid fa-sun hidden dark:block"></i>
+                        </button>
+
+                        <!-- Logout -->
+                        <button id="logout-btn"
+                            class="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50 transition-colors">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Canvas -->
+        <main id="map-container" class="relative overflow-auto" style="height: calc(100vh - 72px);">
+            <div class="absolute inset-0 grid-pattern bg-slate-50 dark:bg-slate-900"></div>
+            <div id="floor-plan" class="relative w-full h-full min-w-[800px] min-h-[600px] p-6"></div>
+        </main>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-overlay"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div id="modal-box"
+            class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md animate-slideUp max-h-[90vh] overflow-y-auto">
+            <div id="modal-header"
+                class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-800 z-10">
+                <h2 id="modal-title" class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                </h2>
+                <button id="modal-close"
+                    class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div id="modal-content" class="p-5"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <script>
+        // =============================================
+        // API MODULE
+        // =============================================
+        const API = {
+            async request(method, url, data = null) {
+                const options = {
+                    method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (data) options.body = JSON.stringify(data);
+
+                const response = await fetch(url, options);
+                return response.json();
+            },
+
+            // Auth
+            login: (username, password) => API.request('POST', '/api/login', { username, password }),
+            logout: () => API.request('POST', '/api/logout'),
+            getSession: () => API.request('GET', '/api/session'),
+
+            // Tables
+            getTables: (fecha = null, turno = null) => {
+                let url = '/api/tables';
+                const params = [];
+                if (fecha) params.push(`fecha=${fecha}`);
+                if (turno) params.push(`turno=${turno}`);
+                if (params.length) url += '?' + params.join('&');
+                return API.request('GET', url);
+            },
+            createTable: (data) => API.request('POST', '/api/tables', data),
+            updateTable: (id, data) => API.request('PUT', `/api/tables/${id}`, data),
+            deleteTable: (id) => API.request('DELETE', `/api/tables/${id}`),
+            updatePosition: (id, x, y) => API.request('POST', `/api/tables/${id}/position`, { x, y }),
+
+            // Reservations
+            reserveTable: (id, data) => API.request('POST', `/api/tables/${id}/reserve`, data),
+            occupyTable: (id) => API.request('POST', `/api/tables/${id}/occupy`),
+            freeTable: (id) => API.request('POST', `/api/tables/${id}/free`)
+        };
+
+        // =============================================
+        // STATE
+        // =============================================
+        const State = {
+            user: null,
+            tables: [],
+            currentZone: 'interior',
+            currentShift: 'noche',  // 'mediodia' o 'noche'
+            selectedDate: new Date().toISOString().split('T')[0]
+        };
+
+        // =============================================
+        // UTILS
+        // =============================================
+        const Utils = {
+            showToast(message, type = 'info') {
+                const colors = {
+                    success: 'bg-emerald-600',
+                    warning: 'bg-amber-600',
+                    error: 'bg-rose-600',
+                    info: 'bg-indigo-600'
+                };
+                const toast = document.createElement('div');
+                toast.className = `${colors[type]} text-white px-4 py-3 rounded-xl shadow-lg animate-slideUp text-sm flex items-center gap-2`;
+                toast.innerHTML = `<i class="fa-solid fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+                document.getElementById('toast-container').appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(10px)';
+                    toast.style.transition = 'all 0.3s';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            },
+
+            canEdit() {
+                return State.user && ['admin', 'editor'].includes(State.user.role);
+            },
+
+            isAdmin() {
+                return State.user && State.user.role === 'admin';
+            }
+        };
+
+        // =============================================
+        // AUTH MODULE
+        // =============================================
+        const Auth = {
+            async init() {
+                // Check for stored user
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    try {
+                        const result = await API.getSession();
+                        if (result.success) {
+                            State.user = result.user;
+                            return true;
+                        }
+                    } catch (e) { }
+                }
+                // Redirect to login
+                window.location.href = '/login';
+                return false;
+            },
+
+            updateUI() {
+                const badge = document.getElementById('role-badge');
+                const icon = document.getElementById('role-icon');
+                const text = document.getElementById('role-text');
+                const adminControls = document.getElementById('admin-controls');
+
+                const configs = {
+                    admin: { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300', icon: 'fa-crown', label: 'Admin' },
+                    editor: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300', icon: 'fa-pen', label: 'Editor' },
+                    viewer: { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-700 dark:text-slate-300', icon: 'fa-eye', label: 'Viewer' }
+                };
+
+                const config = configs[State.user.role] || configs.viewer;
+                badge.className = `flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`;
+                icon.className = `fa-solid ${config.icon}`;
+                text.textContent = config.label;
+
+                // Show admin controls
+                if (Utils.canEdit()) {
+                    adminControls.classList.remove('hidden');
+                    adminControls.classList.add('flex');
+                }
+            },
+
+            async logout() {
+                await API.logout();
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            }
+        };
+
+        // =============================================
+        // TABLE RENDERER
+        // =============================================
+        const TableRenderer = {
+            container: null,
+
+            init() {
+                this.container = document.getElementById('floor-plan');
+            },
+
+            async loadAndRender() {
+                const tables = await API.getTables(State.selectedDate, State.currentShift);
+                State.tables = tables;
+                this.render();
+            },
+
+            render() {
+                this.container.innerHTML = '';
+                const filtered = State.tables.filter(t => t.zone === State.currentZone);
+
+                filtered.forEach((table, i) => {
+                    const el = this.createTableElement(table);
+                    el.style.animationDelay = `${i * 30}ms`;
+                    this.container.appendChild(el);
+                });
+            },
+
+            createTableElement(table) {
+                const el = document.createElement('div');
+                el.id = `table-${table.id}`;
+                el.className = 'table-item absolute cursor-pointer animate-fadeIn';
+                el.style.left = `${table.x}px`;
+                el.style.top = `${table.y}px`;
+                el.dataset.id = table.id;
+
+                const width = table.capacity <= 2 ? 90 : table.capacity <= 4 ? 120 : table.capacity <= 6 ? 150 : 180;
+                const height = 70;
+
+                const statusConfig = {
+                    free: { border: 'border-emerald-400', hover: 'hover:ring-2 hover:ring-indigo-400', indicator: 'bg-emerald-500' },
+                    reserved: { border: 'border-rose-400', hover: '', indicator: 'bg-rose-500' },
+                    occupied: { border: 'border-amber-400', hover: '', indicator: 'bg-amber-500' }
+                };
+                const config = statusConfig[table.status] || statusConfig.free;
+
+                const canDrag = Utils.canEdit();
+
+                el.innerHTML = `
+                <div class="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    ${this.generateChairs(Math.ceil(table.capacity / 2))}
+                </div>
+                <div class="wood-texture rounded-lg border-2 ${config.border} ${config.hover} shadow-lg transition-all flex items-center justify-center relative overflow-hidden"
+                     style="width: ${width}px; height: ${height}px;">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 pointer-events-none"></div>
+                    <div class="absolute top-1.5 right-1.5">
+                        <div class="w-2.5 h-2.5 rounded-full ${config.indicator} shadow"></div>
+                    </div>
+                    <div class="text-center z-10">
+                        <div class="font-semibold text-sm text-amber-900 dark:text-amber-100">${table.name}</div>
+                        <div class="text-xs text-amber-800/70 dark:text-amber-200/70">${table.capacity} personas</div>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    ${this.generateChairs(Math.floor(table.capacity / 2))}
+                </div>
+            `;
+
+                // Tooltip
+                if (table.status === 'reserved' && table.reservation_info) {
+                    el.title = `${table.reservation_info.customer_name} - ${table.reservation_info.time}`;
+                } else if (table.status === 'occupied') {
+                    el.title = 'Mesa ocupada';
+                } else {
+                    el.title = `${table.name} - Disponible`;
+                }
+
+                // Events
+                if (canDrag) {
+                    DragHandler.attach(el, table);
+                } else {
+                    el.addEventListener('click', () => Modal.openTableDetails(table));
+                }
+
+                return el;
+            },
+
+            generateChairs(count) {
+                let html = '';
+                for (let i = 0; i < count; i++) {
+                    html += '<div class="chair w-4 h-3 shadow"></div>';
+                }
+                return html;
+            }
+        };
+
+        // =============================================
+        // IMPROVED DRAG HANDLER
+        // =============================================
+        const DragHandler = {
+            activeElement: null,
+            startX: 0,
+            startY: 0,
+            initialLeft: 0,
+            initialTop: 0,
+            hasMoved: false,
+            moveThreshold: 5,
+
+            attach(element, table) {
+                // Mouse Events
+                element.addEventListener('mousedown', (e) => this.start(e, element, table));
+
+                // Touch Events
+                element.addEventListener('touchstart', (e) => this.startTouch(e, element, table), { passive: false });
+            },
+
+            start(e, element, table) {
+                if (e.button !== 0) return; // Only left click
+                e.preventDefault();
+
+                this.activeElement = element;
+                this.startX = e.clientX;
+                this.startY = e.clientY;
+                this.initialLeft = table.x;
+                this.initialTop = table.y;
+                this.hasMoved = false;
+                this.currentTable = table;
+
+                document.addEventListener('mousemove', this.move);
+                document.addEventListener('mouseup', this.end);
+            },
+
+            startTouch(e, element, table) {
+                if (e.touches.length !== 1) return;
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                this.activeElement = element;
+                this.startX = touch.clientX;
+                this.startY = touch.clientY;
+                this.initialLeft = table.x;
+                this.initialTop = table.y;
+                this.hasMoved = false;
+                this.currentTable = table;
+
+                document.addEventListener('touchmove', this.moveTouch, { passive: false });
+                document.addEventListener('touchend', this.endTouch);
+            },
+
+            move: (e) => {
+                if (!DragHandler.activeElement) return;
+
+                const dx = e.clientX - DragHandler.startX;
+                const dy = e.clientY - DragHandler.startY;
+
+                // Check if we've moved enough to consider it a drag
+                if (!DragHandler.hasMoved && (Math.abs(dx) > DragHandler.moveThreshold || Math.abs(dy) > DragHandler.moveThreshold)) {
+                    DragHandler.hasMoved = true;
+                    DragHandler.activeElement.classList.add('dragging');
+                }
+
+                if (DragHandler.hasMoved) {
+                    const newX = Math.max(0, DragHandler.initialLeft + dx);
+                    const newY = Math.max(0, DragHandler.initialTop + dy);
+                    DragHandler.activeElement.style.left = `${newX}px`;
+                    DragHandler.activeElement.style.top = `${newY}px`;
+                }
+            },
+
+            moveTouch: (e) => {
+                if (!DragHandler.activeElement || e.touches.length !== 1) return;
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                const dx = touch.clientX - DragHandler.startX;
+                const dy = touch.clientY - DragHandler.startY;
+
+                if (!DragHandler.hasMoved && (Math.abs(dx) > DragHandler.moveThreshold || Math.abs(dy) > DragHandler.moveThreshold)) {
+                    DragHandler.hasMoved = true;
+                    DragHandler.activeElement.classList.add('dragging');
+                }
+
+                if (DragHandler.hasMoved) {
+                    const newX = Math.max(0, DragHandler.initialLeft + dx);
+                    const newY = Math.max(0, DragHandler.initialTop + dy);
+                    DragHandler.activeElement.style.left = `${newX}px`;
+                    DragHandler.activeElement.style.top = `${newY}px`;
+                }
+            },
+
+            end: async () => {
+                if (!DragHandler.activeElement) return;
+
+                DragHandler.activeElement.classList.remove('dragging');
+
+                if (DragHandler.hasMoved) {
+                    // Save new position
+                    const newX = parseInt(DragHandler.activeElement.style.left);
+                    const newY = parseInt(DragHandler.activeElement.style.top);
+
+                    DragHandler.currentTable.x = newX;
+                    DragHandler.currentTable.y = newY;
+
+                    try {
+                        await API.updatePosition(DragHandler.currentTable.id, newX, newY);
+                    } catch (e) {
+                        console.error('Error saving position', e);
+                    }
+                } else {
+                    // It was a click, not a drag
+                    Modal.openTableDetails(DragHandler.currentTable);
+                }
+
+                document.removeEventListener('mousemove', DragHandler.move);
+                document.removeEventListener('mouseup', DragHandler.end);
+                DragHandler.activeElement = null;
+            },
+
+            endTouch: async () => {
+                if (!DragHandler.activeElement) return;
+
+                DragHandler.activeElement.classList.remove('dragging');
+
+                if (DragHandler.hasMoved) {
+                    const newX = parseInt(DragHandler.activeElement.style.left);
+                    const newY = parseInt(DragHandler.activeElement.style.top);
+
+                    DragHandler.currentTable.x = newX;
+                    DragHandler.currentTable.y = newY;
+
+                    try {
+                        await API.updatePosition(DragHandler.currentTable.id, newX, newY);
+                    } catch (e) {
+                        console.error('Error saving position', e);
+                    }
+                } else {
+                    Modal.openTableDetails(DragHandler.currentTable);
+                }
+
+                document.removeEventListener('touchmove', DragHandler.moveTouch);
+                document.removeEventListener('touchend', DragHandler.endTouch);
+                DragHandler.activeElement = null;
+            }
+        };
+
+        // =============================================
+        // MODAL
+        // =============================================
+        const Modal = {
+            overlay: null,
+            title: null,
+            content: null,
+            currentTable: null,
+
+            init() {
+                this.overlay = document.getElementById('modal-overlay');
+                this.title = document.getElementById('modal-title');
+                this.content = document.getElementById('modal-content');
+
+                document.getElementById('modal-close').addEventListener('click', () => this.close());
+                this.overlay.addEventListener('click', (e) => {
+                    if (e.target === this.overlay) this.close();
+                });
+            },
+
+            open(title, iconClass = 'fa-info-circle') {
+                this.title.innerHTML = `<i class="fa-solid ${iconClass} text-indigo-500"></i> ${title}`;
+                this.overlay.classList.remove('hidden');
+            },
+
+            close() {
+                this.overlay.classList.add('hidden');
+                this.content.innerHTML = '';
+                this.currentTable = null;
+            },
+
+            openTableDetails(table) {
+                this.currentTable = table;
+
+                if (table.status === 'free') {
+                    this.open(table.name, 'fa-chair');
+                    this.renderFreeTableOptions(table);
+                } else {
+                    this.open(table.name, table.status === 'reserved' ? 'fa-calendar-check' : 'fa-utensils');
+                    this.renderOccupiedDetails(table);
+                }
+            },
+
+            renderFreeTableOptions(table) {
+                const canEdit = Utils.canEdit();
+
+                this.content.innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-800 rounded-xl flex items-center justify-center">
+                                <i class="fa-solid fa-chair text-emerald-600 dark:text-emerald-300"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-emerald-900 dark:text-emerald-100">${table.name}</div>
+                                <div class="text-sm text-emerald-600 dark:text-emerald-300">Capacidad: ${table.capacity} personas - Disponible</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Occupy Without Reservation -->
+                    <button onclick="Modal.occupyWalkIn('${table.id}')" class="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-lg">
+                        <i class="fa-solid fa-user-plus"></i>
+                        Ocupar Mesa (Sin Reserva)
+                    </button>
+                    
+                    <div class="relative">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200 dark:border-slate-700"></div></div>
+                        <div class="relative flex justify-center text-sm"><span class="px-3 bg-white dark:bg-slate-800 text-slate-500">o crear reserva</span></div>
+                    </div>
+                    
+                    <!-- Reservation Form -->
+                    <form id="reserve-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nombre del cliente</label>
+                            <input type="text" name="customer_name" required placeholder="Nombre completo" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Teléfono</label>
+                            <input type="tel" name="telefono" placeholder="Opcional" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    <i class="fa-regular fa-calendar mr-1"></i>Fecha
+                                </label>
+                                <input type="date" name="fecha" required value="${State.selectedDate}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    <i class="fa-regular fa-clock mr-1"></i>Hora
+                                </label>
+                                <select name="time" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                                    <optgroup label="Mediodía">
+                                        <option value="12:00">12:00</option>
+                                        <option value="12:15">12:15</option>
+                                        <option value="12:30">12:30</option>
+                                        <option value="12:45">12:45</option>
+                                        <option value="13:00">13:00</option>
+                                        <option value="13:15">13:15</option>
+                                        <option value="13:30">13:30</option>
+                                        <option value="13:45">13:45</option>
+                                        <option value="14:00">14:00</option>
+                                        <option value="14:15">14:15</option>
+                                        <option value="14:30">14:30</option>
+                                        <option value="14:45">14:45</option>
+                                        <option value="15:00">15:00</option>
+                                        <option value="15:15">15:15</option>
+                                        <option value="15:30">15:30</option>
+                                        <option value="15:45">15:45</option>
+                                        <option value="16:00">16:00</option>
+                                        <option value="16:30">16:30</option>
+                                    </optgroup>
+                                    <optgroup label="Noche">
+                                        <option value="20:00" selected>20:00</option>
+                                        <option value="20:15">20:15</option>
+                                        <option value="20:30">20:30</option>
+                                        <option value="20:45">20:45</option>
+                                        <option value="21:00">21:00</option>
+                                        <option value="21:15">21:15</option>
+                                        <option value="21:30">21:30</option>
+                                        <option value="21:45">21:45</option>
+                                        <option value="22:00">22:00</option>
+                                        <option value="22:15">22:15</option>
+                                        <option value="22:30">22:30</option>
+                                        <option value="22:45">22:45</option>
+                                        <option value="23:00">23:00</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                <i class="fa-solid fa-users mr-1"></i>Personas (máx ${table.capacity})
+                            </label>
+                            <div class="flex gap-2">
+                                ${[1, 2, 3, 4, 5, 6].filter(n => n <= table.capacity).map(n => `
+                                    <button type="button" class="people-btn flex-1 py-2.5 rounded-xl border-2 ${n === 2 ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'border-slate-200 dark:border-slate-600 hover:border-indigo-300'} font-semibold transition-all" data-count="${n}">${n}</button>
+                                `).join('')}
+                            </div>
+                            <input type="hidden" name="people" value="2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                <i class="fa-regular fa-note-sticky mr-1"></i>Notas (opcional)
+                            </label>
+                            <textarea name="notas" rows="2" placeholder="Alergias, preferencias, celebraciones..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                        </div>
+                        <button type="submit" id="submit-reservation" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
+                            <i class="fa-solid fa-calendar-plus"></i>
+                            Confirmar Reserva
+                        </button>
+                    </form>
+                    
+                    ${canEdit ? `
+                    <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <p class="text-xs text-slate-500 mb-3">Opciones de administrador</p>
+                        <div class="flex gap-2">
+                            <button onclick="Modal.editTable('${table.id}')" class="flex-1 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg transition-colors flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-pen"></i> Editar
+                            </button>
+                            <button onclick="Modal.deleteTable('${table.id}')" class="py-2 px-3 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 text-sm rounded-lg transition-colors">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
+                // People selector buttons
+                document.querySelectorAll('.people-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.people-btn').forEach(b => {
+                            b.className = 'people-btn flex-1 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-600 hover:border-indigo-300 font-semibold transition-all';
+                        });
+                        btn.className = 'people-btn flex-1 py-2.5 rounded-xl border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-semibold transition-all';
+                        document.querySelector('input[name="people"]').value = btn.dataset.count;
+                    });
+                });
+
+                document.getElementById('reserve-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('submit-reservation');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creando...';
+                    btn.disabled = true;
+
+                    const formData = new FormData(e.target);
+                    await this.createReservation(table.id, {
+                        customer_name: formData.get('customer_name'),
+                        telefono: formData.get('telefono') || '',
+                        fecha: formData.get('fecha'),
+                        time: formData.get('time'),
+                        people: parseInt(formData.get('people')),
+                        notas: formData.get('notas') || ''
+                    });
+
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+            },
+
+            renderOccupiedDetails(table) {
+                const info = table.reservation_info || {};
+                const isOccupied = table.status === 'occupied';
+                const canEdit = Utils.canEdit();
+
+                this.content.innerHTML = `
+                <div class="space-y-4">
+                    <div class="${isOccupied ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-rose-50 dark:bg-rose-900/20'} rounded-xl p-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 ${isOccupied ? 'bg-amber-100 dark:bg-amber-800' : 'bg-rose-100 dark:bg-rose-800'} rounded-xl flex items-center justify-center">
+                                <i class="fa-solid ${isOccupied ? 'fa-utensils' : 'fa-calendar-check'} ${isOccupied ? 'text-amber-600 dark:text-amber-300' : 'text-rose-600 dark:text-rose-300'}"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold ${isOccupied ? 'text-amber-900 dark:text-amber-100' : 'text-rose-900 dark:text-rose-100'}">${table.name}</div>
+                                <div class="text-sm ${isOccupied ? 'text-amber-600 dark:text-amber-300' : 'text-rose-600 dark:text-rose-300'}">${isOccupied ? 'Mesa ocupada' : 'Mesa reservada'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-2">
+                        <div class="flex items-center gap-3 text-sm">
+                            <i class="fa-solid fa-user text-slate-400 w-4"></i>
+                            <span class="text-slate-700 dark:text-slate-200">${info.customer_name || 'Sin datos'}</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i class="fa-solid fa-clock text-slate-400 w-4"></i>
+                            <span class="text-slate-700 dark:text-slate-200">${info.time || 'N/A'}</span>
+                        </div>
+                        ${info.people ? `
+                        <div class="flex items-center gap-3 text-sm">
+                            <i class="fa-solid fa-users text-slate-400 w-4"></i>
+                            <span class="text-slate-700 dark:text-slate-200">${info.people} personas</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        ${table.status === 'reserved' ? `
+                        <button onclick="Modal.markAsOccupied('${table.id}')" class="py-3 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-utensils"></i> Cliente llegó
+                        </button>
+                        ` : `
+                        <button onclick="Modal.freeTable('${table.id}')" class="py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check"></i> Liberar
+                        </button>
+                        `}
+                        <button onclick="Modal.freeTable('${table.id}')" class="py-3 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200 font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-times"></i> Cancelar
+                        </button>
+                    </div>
+                    
+                    ${canEdit ? `
+                    <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <button onclick="Modal.deleteTable('${table.id}')" class="w-full py-2 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 text-sm rounded-lg transition-colors flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-trash"></i> Eliminar mesa
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            },
+
+            async occupyWalkIn(tableId) {
+                try {
+                    const result = await API.occupyTable(tableId);
+                    if (result.success) {
+                        Utils.showToast('Mesa ocupada', 'success');
+                        this.close();
+                        await TableRenderer.loadAndRender();
+                    } else {
+                        Utils.showToast(result.message, 'error');
+                    }
+                } catch (e) {
+                    Utils.showToast('Error de conexión', 'error');
+                }
+            },
+
+            async createReservation(tableId, data) {
+                try {
+                    const result = await API.reserveTable(tableId, data);
+                    if (result.success) {
+                        Utils.showToast('Reserva creada', 'success');
+                        this.close();
+                        await TableRenderer.loadAndRender();
+                    } else {
+                        Utils.showToast(result.message, 'error');
+                    }
+                } catch (e) {
+                    Utils.showToast('Error de conexión', 'error');
+                }
+            },
+
+            async markAsOccupied(tableId) {
+                try {
+                    const table = State.tables.find(t => t.id === tableId);
+                    if (table) {
+                        table.status = 'occupied';
+                        await API.request('POST', '/api/update_booking', { table_id: tableId, action: 'occupy' });
+                        Utils.showToast('Cliente llegó', 'success');
+                        this.close();
+                        await TableRenderer.loadAndRender();
+                    }
+                } catch (e) {
+                    Utils.showToast('Error', 'error');
+                }
+            },
+
+            async freeTable(tableId) {
+                try {
+                    const result = await API.freeTable(tableId);
+                    if (result.success) {
+                        Utils.showToast('Mesa liberada', 'success');
+                        this.close();
+                        await TableRenderer.loadAndRender();
+                    } else {
+                        Utils.showToast(result.message, 'error');
+                    }
+                } catch (e) {
+                    Utils.showToast('Error de conexión', 'error');
+                }
+            },
+
+            async deleteTable(tableId) {
+                if (!confirm('¿Eliminar esta mesa permanentemente?')) return;
+
+                try {
+                    const result = await API.deleteTable(tableId);
+                    if (result.success) {
+                        Utils.showToast('Mesa eliminada', 'success');
+                        this.close();
+                        await TableRenderer.loadAndRender();
+                    } else {
+                        Utils.showToast(result.message, 'error');
+                    }
+                } catch (e) {
+                    Utils.showToast('Error de conexión', 'error');
+                }
+            },
+
+            editTable(tableId) {
+                const table = State.tables.find(t => t.id === tableId);
+                if (!table) return;
+
+                this.title.innerHTML = '<i class="fa-solid fa-pen text-indigo-500"></i> Editar Mesa';
+
+                this.content.innerHTML = `
+                <form id="edit-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nombre</label>
+                        <input type="text" name="name" value="${table.name}" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Capacidad</label>
+                        <input type="number" name="capacity" value="${table.capacity}" min="1" max="20" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Zona</label>
+                        <select name="zone" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="interior" ${table.zone === 'interior' ? 'selected' : ''}>Interior</option>
+                            <option value="terraza" ${table.zone === 'terraza' ? 'selected' : ''}>Terraza</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors">
+                        Guardar Cambios
+                    </button>
+                </form>
+            `;
+
+                document.getElementById('edit-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    try {
+                        const result = await API.updateTable(tableId, {
+                            name: formData.get('name'),
+                            capacity: parseInt(formData.get('capacity')),
+                            zone: formData.get('zone')
+                        });
+                        if (result.success) {
+                            Utils.showToast('Mesa actualizada', 'success');
+                            this.close();
+                            await TableRenderer.loadAndRender();
+                        } else {
+                            Utils.showToast(result.message, 'error');
+                        }
+                    } catch (e) {
+                        Utils.showToast('Error de conexión', 'error');
+                    }
+                });
+            },
+
+            openCreateTable() {
+                this.open('Nueva Mesa', 'fa-plus');
+
+                this.content.innerHTML = `
+                <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-sm text-blue-700 dark:text-blue-300">
+                    <i class="fa-solid fa-info-circle mr-1"></i>
+                    El nombre de la mesa se asigna automáticamente (Mesa 11, Mesa 12, etc.)
+                </div>
+                <form id="create-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Capacidad (personas)</label>
+                        <select name="capacity" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="2">2 personas</option>
+                            <option value="4" selected>4 personas</option>
+                            <option value="6">6 personas</option>
+                            <option value="8">8 personas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Zona</label>
+                        <select name="zone" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="interior" ${State.currentZone === 'interior' ? 'selected' : ''}>Interior</option>
+                            <option value="terraza" ${State.currentZone === 'terraza' ? 'selected' : ''}>Terraza</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus"></i>
+                        Crear Mesa
+                    </button>
+                </form>
+            `;
+
+                document.getElementById('create-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    try {
+                        const result = await API.createTable({
+                            capacity: parseInt(formData.get('capacity')),
+                            zone: formData.get('zone')
+                        });
+                        if (result.success) {
+                            Utils.showToast('Mesa creada', 'success');
+                            this.close();
+                            await TableRenderer.loadAndRender();
+                        } else {
+                            Utils.showToast(result.message, 'error');
+                        }
+                    } catch (e) {
+                        Utils.showToast('Error de conexión', 'error');
+                    }
+                });
+            }
+        };
+
+        // =============================================
+        // ZONE CONTROLLER
+        // =============================================
+        const ZoneController = {
+            init() {
+                document.querySelectorAll('.zone-btn').forEach(btn => {
+                    btn.addEventListener('click', () => this.switch(btn.dataset.zone));
+                });
+            },
+
+            switch(zone) {
+                State.currentZone = zone;
+
+                document.querySelectorAll('.zone-btn').forEach(btn => {
+                    if (btn.dataset.zone === zone) {
+                        btn.className = 'zone-btn px-3 py-2 text-sm font-medium bg-indigo-600 text-white';
+                    } else {
+                        btn.className = 'zone-btn px-3 py-2 text-sm font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600';
+                    }
+                });
+
+                TableRenderer.render();
+            }
+        };
+
+        // =============================================
+        // SHIFT CONTROLLER
+        // =============================================
+        const ShiftController = {
+            init() {
+                document.querySelectorAll('.shift-btn').forEach(btn => {
+                    btn.addEventListener('click', () => this.switch(btn.dataset.shift));
+                });
+            },
+
+            async switch(shift) {
+                State.currentShift = shift;
+
+                document.querySelectorAll('.shift-btn').forEach(btn => {
+                    if (btn.dataset.shift === shift) {
+                        if (shift === 'mediodia') {
+                            btn.className = 'shift-btn px-3 py-2 text-sm font-medium bg-orange-500 text-white';
+                        } else {
+                            btn.className = 'shift-btn px-3 py-2 text-sm font-medium bg-amber-500 text-white';
+                        }
+                    } else {
+                        btn.className = 'shift-btn px-3 py-2 text-sm font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600';
+                    }
+                });
+
+                // Reload tables for selected shift
+                Utils.showToast(`Turno: ${shift === 'mediodia' ? 'Mediodía' : 'Noche'}`, 'info');
+                await TableRenderer.loadAndRender();
+            }
+        };
+
+        // =============================================
+        // DATE CONTROLLER
+        // =============================================
+        const DateController = {
+            init() {
+                const picker = document.getElementById('date-picker');
+                picker.value = State.selectedDate;
+
+                picker.addEventListener('change', async (e) => {
+                    State.selectedDate = e.target.value;
+                    Utils.showToast(`Fecha: ${e.target.value}`, 'info');
+                    await TableRenderer.loadAndRender();
+                });
+            }
+        };
+
+        // =============================================
+        // THEME
+        // =============================================
+        const Theme = {
+            init() {
+                if (localStorage.getItem('darkMode') === 'true' ||
+                    (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                }
+
+                document.getElementById('dark-toggle').addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark');
+                    localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+                });
+            }
+        };
+
+        // =============================================
+        // SYNC CONTROLLER - Auto-refresh every 4s
+        // =============================================
+        const SyncController = {
+            pollInterval: null,
+            POLL_DELAY: 4000,  // 4 seconds
+            lastDataHash: null,
+
+            init() {
+                this.startPolling();
+                console.log('[SYNC] Auto-refresh iniciado (4s)');
+            },
+
+            startPolling() {
+                if (this.pollInterval) clearInterval(this.pollInterval);
+                this.pollInterval = setInterval(async () => {
+                    await this.syncTables();
+                }, this.POLL_DELAY);
+            },
+
+            stopPolling() {
+                if (this.pollInterval) {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                }
+            },
+
+            async syncTables() {
+                try {
+                    const tables = await API.getTables(State.selectedDate, State.currentShift);
+                    const newHash = JSON.stringify(tables);
+
+                    // Solo actualizar si hay cambios
+                    if (newHash !== this.lastDataHash) {
+                        this.lastDataHash = newHash;
+                        State.tables = tables;
+                        TableRenderer.render();
+                        console.log('[SYNC] Datos actualizados');
+                    }
+                } catch (e) {
+                    console.error('[SYNC] Error:', e);
+                }
+            }
+        };
+
+        // =============================================
+        // INIT
+        // =============================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            Theme.init();
+
+            // Check auth
+            const isLoggedIn = await Auth.init();
+            if (!isLoggedIn) return;
+
+            // Hide loading, show app
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+
+            // Initialize modules
+            Auth.updateUI();
+            TableRenderer.init();
+            Modal.init();
+            ZoneController.init();
+            ShiftController.init();
+            DateController.init();
+            SyncController.init();  // Start auto-refresh
+
+            // Load tables
+            await TableRenderer.loadAndRender();
+
+            // Event listeners
+            document.getElementById('logout-btn').addEventListener('click', () => Auth.logout());
+            document.getElementById('btn-add-table').addEventListener('click', () => Modal.openCreateTable());
+        });
+    </script>
+</body>
+
+</html>

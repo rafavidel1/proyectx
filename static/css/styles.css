@@ -1,0 +1,200 @@
+/* =============================================
+   Floor Plan Manager - Estilos Principales
+   ============================================= */
+
+/* Grid pattern para el fondo */
+.grid-pattern {
+    background-image: 
+        linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* =============================================
+   Estilos de Mesas
+   ============================================= */
+
+.table-item {
+    touch-action: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.table-item:hover {
+    transform: scale(1.05);
+    z-index: 50;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+}
+
+.table-item:active {
+    cursor: grabbing;
+    transform: scale(1.02);
+}
+
+/* =============================================
+   Estilos para las sillas
+   ============================================= */
+
+.chair {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 5;
+    pointer-events: none;
+    transition: transform 0.2s ease;
+}
+
+/* Posiciones de sillas - Mesas pequeñas */
+.chair-top { 
+    top: -10px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+}
+
+.chair-bottom { 
+    bottom: -10px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+}
+
+.chair-left { 
+    left: -10px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+}
+
+.chair-right { 
+    right: -10px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+}
+
+/* Posiciones para mesas grandes (6+ personas) */
+.chair-top-left { 
+    top: -10px; 
+    left: 15px; 
+}
+
+.chair-top-right { 
+    top: -10px; 
+    right: 15px; 
+}
+
+.chair-bottom-left { 
+    bottom: -10px; 
+    left: 15px; 
+}
+
+.chair-bottom-right { 
+    bottom: -10px; 
+    right: 15px; 
+}
+
+/* =============================================
+   Responsive Design
+   ============================================= */
+
+/* Móviles */
+@media (max-width: 640px) {
+    #floor-plan {
+        min-width: 600px;
+        min-height: 500px;
+    }
+    
+    .chair {
+        width: 10px;
+        height: 10px;
+    }
+    
+    /* Header más compacto en móvil */
+    header {
+        padding: 0.5rem;
+    }
+    
+    header h1 {
+        font-size: 1rem;
+    }
+}
+
+/* Tablets */
+@media (min-width: 641px) and (max-width: 1024px) {
+    #floor-plan {
+        min-width: 100%;
+    }
+}
+
+/* =============================================
+   Animaciones
+   ============================================= */
+
+.transition-all {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Animación de entrada para mesas */
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+#floor-plan > div {
+    animation: fadeInScale 0.3s ease-out forwards;
+}
+
+/* =============================================
+   Mejoras de Accesibilidad
+   ============================================= */
+
+/* Focus visible mejorado */
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Selector de fecha mejorado */
+#date-picker {
+    min-width: 140px;
+}
+
+#date-picker::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+#date-picker::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* =============================================
+   Modal Estilos
+   ============================================= */
+
+#modal {
+    backdrop-filter: blur(2px);
+}
+
+#modal > div {
+    animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

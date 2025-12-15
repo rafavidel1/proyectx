@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Floor Plan Manager</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        wood: {
+                            light: '#d4a574',
+                            DEFAULT: '#8b5a2b',
+                            dark: '#5c3d2e'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .dark .glass {
+            background: rgba(30, 41, 59, 0.75);
+            border: 1px solid rgba(71, 85, 105, 0.4);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-200 dark:from-slate-900 dark:via-indigo-950 dark:to-slate-800 min-h-screen flex items-center justify-center p-4 transition-colors duration-300">
+
+    <!-- Dark Mode Toggle -->
+    <button id="dark-toggle"
+        class="fixed top-4 right-4 p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 shadow-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-all">
+        <i class="fa-solid fa-moon dark:hidden"></i>
+        <i class="fa-solid fa-sun hidden dark:block"></i>
+    </button>
+
+    <!-- Login Card -->
+    <div class="glass rounded-2xl p-8 w-full max-w-md shadow-2xl animate-fadeIn">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <div
+                class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+                <i class="fa-solid fa-utensils text-3xl text-white"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Floor Plan Manager</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Sistema de Gestión de Mesas</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error-msg"
+            class="hidden mb-4 p-3 bg-rose-100 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-xl text-rose-700 dark:text-rose-300 text-sm">
+            <i class="fa-solid fa-exclamation-circle mr-2"></i>
+            <span id="error-text">Error</span>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Usuario
+                </label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                        <i class="fa-solid fa-user"></i>
+                    </span>
+                    <input type="text" id="username" name="username" required placeholder="Ingresa tu usuario"
+                        autocomplete="username"
+                        class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Contraseña
+                </label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                        <i class="fa-solid fa-lock"></i>
+                    </span>
+                    <input type="password" id="password" name="password" required placeholder="Ingresa tu contraseña"
+                        autocomplete="current-password"
+                        class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
+                </div>
+            </div>
+
+            <button type="submit" id="submit-btn"
+                class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 flex items-center justify-center gap-2">
+                <span id="btn-text">Iniciar Sesión</span>
+                <i id="btn-icon" class="fa-solid fa-arrow-right"></i>
+                <i id="btn-spinner" class="fa-solid fa-spinner fa-spin hidden"></i>
+            </button>
+        </form>
+
+        <!-- Footer -->
+        <div class="mt-8 pt-6 border-t border-slate-200/50 dark:border-slate-700/50">
+            <p class="text-xs text-center text-slate-400 dark:text-slate-500">
+                Credenciales de prueba: admin / admin123
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Theme Controller
+        if (localStorage.getItem('darkMode') === 'true' ||
+            (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+
+        document.getElementById('dark-toggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        });
+
+        // Login Handler
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submit-btn');
+            const btnText = document.getElementById('btn-text');
+            const btnIcon = document.getElementById('btn-icon');
+            const btnSpinner = document.getElementById('btn-spinner');
+            const errorMsg = document.getElementById('error-msg');
+            const errorText = document.getElementById('error-text');
+
+            // Show loading
+            submitBtn.disabled = true;
+            btnText.textContent = 'Verificando...';
+            btnIcon.classList.add('hidden');
+            btnSpinner.classList.remove('hidden');
+            errorMsg.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Store user info
+                    localStorage.setItem('user', JSON.stringify(data.user));
+
+                    // Redirect to dashboard
+                    window.location.href = '/';
+                } else {
+                    errorText.textContent = data.message || 'Credenciales inválidas';
+                    errorMsg.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorText.textContent = 'Error de conexión';
+                errorMsg.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                btnText.textContent = 'Iniciar Sesión';
+                btnIcon.classList.remove('hidden');
+                btnSpinner.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+
+</html>
