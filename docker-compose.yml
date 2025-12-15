@@ -1,7 +1,7 @@
 # ========================================
 # Floor Plan Manager - Docker Compose
 # ========================================
-# Conecta al PostgreSQL existente en el VPS
+# Solo el dashboard - la DB se gestiona externamente
 
 version: '3.8'
 
@@ -12,41 +12,10 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
-    environment:
-      # Database - usando el postgres_db existente
-      - DB_HOST=postgres_db
-      - DB_PORT=5432
-      - DB_NAME=dashboard_db
-      - DB_USER=postgres
-      - DB_PASSWORD=${DB_PASSWORD:-tu_password_aqui}
-      
-      # Application
-      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-cambiar-en-produccion-abc123}
-      - HORA_CORTE_TURNO=17:00:00
+    env_file:
+      - .env
     networks:
       - postgresql_default
-    depends_on:
-      - postgres_init
-    
-  # Servicio temporal para crear la base de datos
-  postgres_init:
-    image: postgres:16
-    container_name: postgres_init_dashboard
-    environment:
-      - PGPASSWORD=${DB_PASSWORD:-tu_password_aqui}
-    networks:
-      - postgresql_default
-    command: >
-      bash -c "
-        until pg_isready -h postgres_db -p 5432; do
-          echo 'Esperando a PostgreSQL...'
-          sleep 2
-        done
-        echo 'PostgreSQL disponible, creando base de datos si no existe...'
-        psql -h postgres_db -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'dashboard_db'\" | grep -q 1 || psql -h postgres_db -U postgres -c 'CREATE DATABASE dashboard_db'
-        echo 'Base de datos lista!'
-      "
-    restart: "no"
 
 networks:
   postgresql_default:
