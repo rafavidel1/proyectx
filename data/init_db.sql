@@ -32,7 +32,8 @@ CREATE TABLE mesas (
     id SERIAL PRIMARY KEY,
     id_mesa VARCHAR(10) UNIQUE NOT NULL,
     capacidad INT NOT NULL DEFAULT 4,
-    tipo VARCHAR(20) NOT NULL DEFAULT 'interior',
+    tipo VARCHAR(20) NOT NULL DEFAULT 'normal',
+    zona VARCHAR(20) NOT NULL DEFAULT 'interior',
     activa BOOLEAN DEFAULT true,
     pos_x FLOAT DEFAULT 100,
     pos_y FLOAT DEFAULT 100,
@@ -43,7 +44,7 @@ CREATE TABLE mesas (
 
 -- Índices
 CREATE INDEX idx_mesas_id_mesa ON mesas(id_mesa);
-CREATE INDEX idx_mesas_tipo ON mesas(tipo);
+CREATE INDEX idx_mesas_zona ON mesas(zona);
 CREATE INDEX idx_mesas_activa ON mesas(activa);
 
 -- ==============================================

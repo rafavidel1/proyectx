@@ -194,7 +194,7 @@ def obtener_mesas_con_estado(fecha: str = None, turno: str = None) -> List[Dict[
         with get_db_cursor() as cursor:
             # Obtener mesas
             cursor.execute("""
-                SELECT id, id_mesa, capacidad, tipo, pos_x, pos_y, rotacion
+                SELECT id, id_mesa, capacidad, tipo, zona, pos_x, pos_y, rotacion
                 FROM mesas 
                 WHERE activa = true
                 ORDER BY id_mesa
@@ -218,7 +218,8 @@ def obtener_mesas_con_estado(fecha: str = None, turno: str = None) -> List[Dict[
                     'id': m['id_mesa'],
                     'name': f"Mesa {m['id_mesa'][1:]}",
                     'capacity': m['capacidad'],
-                    'zone': m['tipo'],
+                    'type': m['tipo'],
+                    'zone': m['zona'],
                     'x': m['pos_x'],
                     'y': m['pos_y'],
                     'rotation': m['rotacion'],
@@ -263,9 +264,9 @@ def crear_mesa(capacidad: int, tipo: str = 'interior') -> Dict[str, Any]:
             pos_y = 80 + ((next_num - 1) // 4) * 140
             
             cursor.execute("""
-                INSERT INTO mesas (id_mesa, capacidad, tipo, pos_x, pos_y)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id, id_mesa, capacidad, tipo, pos_x, pos_y, rotacion
+                INSERT INTO mesas (id_mesa, capacidad, tipo, zona, pos_x, pos_y)
+                VALUES (%s, %s, 'normal', %s, %s, %s)
+                RETURNING id, id_mesa, capacidad, tipo, zona, pos_x, pos_y, rotacion
             """, (id_mesa, capacidad, tipo, pos_x, pos_y))
             
             mesa = cursor.fetchone()
@@ -277,7 +278,8 @@ def crear_mesa(capacidad: int, tipo: str = 'interior') -> Dict[str, Any]:
                     'id': mesa['id_mesa'],
                     'name': f"Mesa {next_num}",
                     'capacity': mesa['capacidad'],
-                    'zone': mesa['tipo'],
+                    'type': mesa['tipo'],
+                    'zone': mesa['zona'],
                     'x': mesa['pos_x'],
                     'y': mesa['pos_y'],
                     'rotation': mesa['rotacion'],
@@ -421,21 +423,81 @@ def crear_reserva(id_mesa: str, nombre: str, fecha: str, hora: str,
         print(f"[DB] Error creando reserva: {e}")
         return {'success': False, 'message': str(e)}
 
-def ocupar_mesa_sin_reserva(id_mesa: str) -> Dict[str, Any]:
-    """Ocupa una mesa sin reserva previa (walk-in)."""
+def ocupar_mesa_sin_reserva(id_mesa: str, fecha: str = None, turno: str = None) -> Dict[str, Any]:
+    """
+    Ocupa una mesa sin reserva previa (walk-in).
+    Crea un registro completo en la tabla de reservas con datos identificables.
+    
+    Args:
+        id_mesa: ID de la mesa
+        fecha: Fecha de ocupación (YYYY-MM-DD). Si None, usa hoy.
+        turno: 'mediodia' o 'noche'. Si None, determina por hora actual.
+    """
+    import random
+    
     try:
-        fecha_hoy = date.today().isoformat()
+        # Usar fecha proporcionada o hoy
+        if fecha is None:
+            fecha = date.today().isoformat()
+        
         hora_actual = datetime.now().strftime('%H:%M:%S')
         
+        # Usar turno proporcionado o determinar por hora
+        if turno is None:
+            turno = _determinar_turno(hora_actual)
+        
+        # La hora de la reserva será una hora típica del turno
+        if turno == 'mediodia':
+            hora_reserva = '13:00:00'
+        else:
+            hora_reserva = '20:00:00'
+        
+        # Generar ID: RESYYYYMMDD_XXXX (17 chars para VARCHAR(20))
+        random_suffix = random.randint(1000, 9999)
+        fecha_str = fecha.replace('-', '')
+        id_reserva = f"RES{fecha_str}_{random_suffix}"
+        
         with get_db_cursor() as cursor:
-            id_reserva = _generar_id_reserva()
+            # Obtener capacidad máxima de la mesa
+            cursor.execute("SELECT capacidad FROM mesas WHERE id_mesa = %s", (id_mesa,))
+            mesa = cursor.fetchone()
+            if not mesa:
+                return {'success': False, 'message': 'Mesa no encontrada'}
+            
+            capacidad = mesa['capacidad']
+            
+            # Verificar si la mesa ya está ocupada para este turno
+            if turno == 'mediodia':
+                hora_inicio, hora_fin = '00:00:00', HORA_CORTE_TURNO
+            else:
+                hora_inicio, hora_fin = HORA_CORTE_TURNO, '23:59:59'
             
             cursor.execute("""
-                INSERT INTO reservas (id_reserva, id_mesa, nombre, fecha, hora, invitados, estado)
-                VALUES (%s, %s, 'Walk-in', %s, %s, 0, 'Ocupado')
-            """, (id_reserva, id_mesa, fecha_hoy, hora_actual))
+                SELECT id_reserva FROM reservas 
+                WHERE id_mesa = %s AND fecha = %s 
+                  AND hora >= %s::time AND hora < %s::time
+                  AND estado IN ('Reservado', 'Ocupado')
+            """, (id_mesa, fecha, hora_inicio, hora_fin))
             
-            return {'success': True, 'message': 'Mesa ocupada'}
+            if cursor.fetchone():
+                return {'success': False, 'message': 'Mesa ya ocupada para este turno'}
+            
+            # Crear el registro de reserva manual
+            cursor.execute("""
+                INSERT INTO reservas (
+                    id_reserva, fecha, hora, id_mesa, nombre, 
+                    telefono, invitados, estado, notas, id_llamada
+                ) VALUES (
+                    %s, %s, %s, %s, 'RESERVA MANUAL',
+                    '000000000', %s, 'Ocupado', 'Mesa ocupada sin reserva previa', NULL
+                )
+            """, (id_reserva, fecha, hora_reserva, id_mesa, capacidad))
+            
+            return {
+                'success': True, 
+                'message': 'Mesa ocupada',
+                'id_reserva': id_reserva
+            }
     except Exception as e:
         print(f"[DB] Error: {e}")
         return {'success': False, 'message': str(e)}

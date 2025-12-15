@@ -173,11 +173,29 @@
 
                     <!-- Controls -->
                     <div class="flex flex-wrap items-center gap-2 lg:gap-3">
-                        <!-- Date Picker -->
-                        <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2">
-                            <i class="fa-solid fa-calendar text-indigo-500 text-sm"></i>
-                            <input type="date" id="date-picker"
-                                class="bg-transparent border-none text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer w-32">
+                        <!-- Date Picker (Improved) -->
+                        <div
+                            class="flex items-center rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
+                            <button id="date-prev"
+                                class="px-2.5 py-2 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 transition-colors">
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <div class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 cursor-pointer"
+                                onclick="document.getElementById('date-picker').showPicker()">
+                                <i class="fa-regular fa-calendar text-indigo-500"></i>
+                                <span id="date-display"
+                                    class="text-sm font-medium text-slate-700 dark:text-slate-200 min-w-[100px] text-center"></span>
+                                <input type="date" id="date-picker" class="sr-only">
+                            </div>
+                            <button id="date-next"
+                                class="px-2.5 py-2 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 transition-colors">
+                                <i class="fa-solid fa-chevron-right text-xs"></i>
+                            </button>
+                            <button id="date-today"
+                                class="px-2.5 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium transition-colors"
+                                title="Ir a hoy">
+                                Hoy
+                            </button>
                         </div>
 
                         <!-- Zone Buttons -->
@@ -330,7 +348,10 @@
 
             // Reservations
             reserveTable: (id, data) => API.request('POST', `/api/tables/${id}/reserve`, data),
-            occupyTable: (id) => API.request('POST', `/api/tables/${id}/occupy`),
+            occupyTable: (id) => API.request('POST', `/api/tables/${id}/occupy`, {
+                fecha: State.selectedDate,
+                turno: State.currentShift
+            }),
             freeTable: (id) => API.request('POST', `/api/tables/${id}/free`)
         };
 
@@ -341,7 +362,7 @@
             user: null,
             tables: [],
             currentZone: 'interior',
-            currentShift: 'noche',  // 'mediodia' o 'noche'
+            currentShift: new Date().getHours() < 17 ? 'mediodia' : 'noche',
             selectedDate: new Date().toISOString().split('T')[0]
         };
 
@@ -547,6 +568,7 @@
             start(e, element, table) {
                 if (e.button !== 0) return; // Only left click
                 e.preventDefault();
+                e.stopPropagation();
 
                 this.activeElement = element;
                 this.startX = e.clientX;
@@ -556,13 +578,18 @@
                 this.hasMoved = false;
                 this.currentTable = table;
 
+                // Pausar sincronización durante el drag
+                SyncController.setDragging(table.id, table.x, table.y);
+
                 document.addEventListener('mousemove', this.move);
                 document.addEventListener('mouseup', this.end);
+                document.addEventListener('mouseleave', this.end); // Handle mouse leaving window
             },
 
             startTouch(e, element, table) {
                 if (e.touches.length !== 1) return;
                 e.preventDefault();
+                e.stopPropagation();
 
                 const touch = e.touches[0];
                 this.activeElement = element;
@@ -573,12 +600,17 @@
                 this.hasMoved = false;
                 this.currentTable = table;
 
+                // Pausar sincronización durante el drag
+                SyncController.setDragging(table.id, table.x, table.y);
+
                 document.addEventListener('touchmove', this.moveTouch, { passive: false });
                 document.addEventListener('touchend', this.endTouch);
+                document.addEventListener('touchcancel', this.endTouch); // Handle touch interruption
             },
 
             move: (e) => {
                 if (!DragHandler.activeElement) return;
+                e.preventDefault();
 
                 const dx = e.clientX - DragHandler.startX;
                 const dy = e.clientY - DragHandler.startY;
@@ -592,8 +624,12 @@
                 if (DragHandler.hasMoved) {
                     const newX = Math.max(0, DragHandler.initialLeft + dx);
                     const newY = Math.max(0, DragHandler.initialTop + dy);
-                    DragHandler.activeElement.style.left = `${newX}px`;
-                    DragHandler.activeElement.style.top = `${newY}px`;
+                    requestAnimationFrame(() => {
+                        if (DragHandler.activeElement) {
+                            DragHandler.activeElement.style.left = `${newX}px`;
+                            DragHandler.activeElement.style.top = `${newY}px`;
+                        }
+                    });
                 }
             },
 
@@ -613,63 +649,84 @@
                 if (DragHandler.hasMoved) {
                     const newX = Math.max(0, DragHandler.initialLeft + dx);
                     const newY = Math.max(0, DragHandler.initialTop + dy);
-                    DragHandler.activeElement.style.left = `${newX}px`;
-                    DragHandler.activeElement.style.top = `${newY}px`;
+                    requestAnimationFrame(() => {
+                        if (DragHandler.activeElement) {
+                            DragHandler.activeElement.style.left = `${newX}px`;
+                            DragHandler.activeElement.style.top = `${newY}px`;
+                        }
+                    });
                 }
+            },
+
+            cleanup: () => {
+                document.removeEventListener('mousemove', DragHandler.move);
+                document.removeEventListener('mouseup', DragHandler.end);
+                document.removeEventListener('mouseleave', DragHandler.end);
+                document.removeEventListener('touchmove', DragHandler.moveTouch);
+                document.removeEventListener('touchend', DragHandler.endTouch);
+                document.removeEventListener('touchcancel', DragHandler.endTouch);
             },
 
             end: async () => {
                 if (!DragHandler.activeElement) return;
 
-                DragHandler.activeElement.classList.remove('dragging');
+                const element = DragHandler.activeElement;
+                const table = DragHandler.currentTable;
+                const moved = DragHandler.hasMoved;
 
-                if (DragHandler.hasMoved) {
-                    // Save new position
-                    const newX = parseInt(DragHandler.activeElement.style.left);
-                    const newY = parseInt(DragHandler.activeElement.style.top);
+                element.classList.remove('dragging');
+                DragHandler.cleanup();
+                DragHandler.activeElement = null;
 
-                    DragHandler.currentTable.x = newX;
-                    DragHandler.currentTable.y = newY;
+                if (moved && table) {
+                    const newX = parseInt(element.style.left);
+                    const newY = parseInt(element.style.top);
+                    table.x = newX;
+                    table.y = newY;
 
                     try {
-                        await API.updatePosition(DragHandler.currentTable.id, newX, newY);
+                        await API.updatePosition(table.id, newX, newY);
+                        SyncController.localPositions[table.id] = { x: newX, y: newY };
                     } catch (e) {
                         console.error('Error saving position', e);
                     }
-                } else {
-                    // It was a click, not a drag
-                    Modal.openTableDetails(DragHandler.currentTable);
+                } else if (table) {
+                    Modal.openTableDetails(table);
                 }
 
-                document.removeEventListener('mousemove', DragHandler.move);
-                document.removeEventListener('mouseup', DragHandler.end);
-                DragHandler.activeElement = null;
+                // Reanudar sincronización
+                if (table) SyncController.clearDragging(table.id);
             },
 
             endTouch: async () => {
                 if (!DragHandler.activeElement) return;
 
-                DragHandler.activeElement.classList.remove('dragging');
+                const element = DragHandler.activeElement;
+                const table = DragHandler.currentTable;
+                const moved = DragHandler.hasMoved;
 
-                if (DragHandler.hasMoved) {
-                    const newX = parseInt(DragHandler.activeElement.style.left);
-                    const newY = parseInt(DragHandler.activeElement.style.top);
+                element.classList.remove('dragging');
+                DragHandler.cleanup();
+                DragHandler.activeElement = null;
 
-                    DragHandler.currentTable.x = newX;
-                    DragHandler.currentTable.y = newY;
+                if (moved && table) {
+                    const newX = parseInt(element.style.left);
+                    const newY = parseInt(element.style.top);
+                    table.x = newX;
+                    table.y = newY;
 
                     try {
-                        await API.updatePosition(DragHandler.currentTable.id, newX, newY);
+                        await API.updatePosition(table.id, newX, newY);
+                        SyncController.localPositions[table.id] = { x: newX, y: newY };
                     } catch (e) {
                         console.error('Error saving position', e);
                     }
-                } else {
-                    Modal.openTableDetails(DragHandler.currentTable);
+                } else if (table) {
+                    Modal.openTableDetails(table);
                 }
 
-                document.removeEventListener('touchmove', DragHandler.moveTouch);
-                document.removeEventListener('touchend', DragHandler.endTouch);
-                DragHandler.activeElement = null;
+                // Reanudar sincronización
+                if (table) SyncController.clearDragging(table.id);
             }
         };
 
@@ -733,11 +790,27 @@
                         </div>
                     </div>
                     
-                    <!-- Occupy Without Reservation -->
-                    <button onclick="Modal.occupyWalkIn('${table.id}')" class="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-lg">
-                        <i class="fa-solid fa-user-plus"></i>
-                        Ocupar Mesa (Sin Reserva)
-                    </button>
+                    <!-- Occupy Without Reservation (only today + current shift) -->
+                    ${(() => {
+                        const hoy = new Date().toISOString().split('T')[0];
+                        const turnoActual = new Date().getHours() < 17 ? 'mediodia' : 'noche';
+                        const puedeOcupar = State.selectedDate === hoy && State.currentShift === turnoActual;
+                        if (puedeOcupar) {
+                            return `<button onclick="Modal.occupyWalkIn('${table.id}')" class="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-lg">
+                                <i class="fa-solid fa-user-plus"></i>
+                                Ocupar Mesa (Sin Reserva)
+                            </button>`;
+                        } else {
+                            const turnoNombre = turnoActual === 'mediodia' ? 'Mediodía' : 'Noche';
+                            return `<div class="bg-slate-100 dark:bg-slate-700/50 rounded-xl p-4 text-center">
+                                <i class="fa-solid fa-info-circle text-slate-400 text-lg mb-2"></i>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">Solo puedes ocupar mesas para hoy en el turno actual (${turnoNombre}).</p>
+                                <button onclick="ShiftController.goToCurrent(); Modal.close();" class="mt-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                                    <i class="fa-solid fa-arrow-right mr-1"></i>Ir a hoy ${turnoNombre}
+                                </button>
+                            </div>`;
+                        }
+                    })()}
                     
                     <div class="relative">
                         <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200 dark:border-slate-700"></div></div>
@@ -940,11 +1013,42 @@
 
             async occupyWalkIn(tableId) {
                 try {
-                    const result = await API.occupyTable(tableId);
+                    // Determinar turno actual basado en la hora
+                    const ahora = new Date();
+                    const hora = ahora.getHours();
+                    const turnoActual = hora < 17 ? 'mediodia' : 'noche';
+                    const fechaHoy = ahora.toISOString().split('T')[0];
+
+                    // Ocupar la mesa para hoy y turno actual
+                    const result = await API.request('POST', `/api/tables/${tableId}/occupy`, {
+                        fecha: fechaHoy,
+                        turno: turnoActual
+                    });
+
                     if (result.success) {
                         Utils.showToast('Mesa ocupada', 'success');
                         this.close();
+
+                        // Navegar a la fecha y turno actuales para ver la mesa ocupada
+                        State.selectedDate = fechaHoy;
+                        State.currentShift = turnoActual;
+
+                        // Actualizar UI
+                        document.getElementById('date-picker').value = fechaHoy;
+
+                        // Actualizar botones de turno
+                        document.querySelectorAll('.shift-btn').forEach(btn => {
+                            if (btn.dataset.shift === turnoActual) {
+                                btn.className = turnoActual === 'mediodia'
+                                    ? 'shift-btn px-3 py-2 text-sm font-medium bg-orange-500 text-white'
+                                    : 'shift-btn px-3 py-2 text-sm font-medium bg-amber-500 text-white';
+                            } else {
+                                btn.className = 'shift-btn px-3 py-2 text-sm font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600';
+                            }
+                        });
+
                         await TableRenderer.loadAndRender();
+                        Utils.showToast(`Vista actualizada: ${turnoActual === 'mediodia' ? 'Mediodía' : 'Noche'}`, 'info');
                     } else {
                         Utils.showToast(result.message, 'error');
                     }
@@ -1152,6 +1256,15 @@
             init() {
                 document.querySelectorAll('.shift-btn').forEach(btn => {
                     btn.addEventListener('click', () => this.switch(btn.dataset.shift));
+
+                    // Apply correct initial styling
+                    if (btn.dataset.shift === State.currentShift) {
+                        btn.className = State.currentShift === 'mediodia'
+                            ? 'shift-btn px-3 py-2 text-sm font-medium bg-orange-500 text-white'
+                            : 'shift-btn px-3 py-2 text-sm font-medium bg-amber-500 text-white';
+                    } else {
+                        btn.className = 'shift-btn px-3 py-2 text-sm font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600';
+                    }
                 });
             },
 
@@ -1173,6 +1286,18 @@
                 // Reload tables for selected shift
                 Utils.showToast(`Turno: ${shift === 'mediodia' ? 'Mediodía' : 'Noche'}`, 'info');
                 await TableRenderer.loadAndRender();
+            },
+
+            async goToCurrent() {
+                // Ir al día de hoy y al turno actual
+                const hoy = new Date().toISOString().split('T')[0];
+                const turnoActual = new Date().getHours() < 17 ? 'mediodia' : 'noche';
+
+                State.selectedDate = hoy;
+                document.getElementById('date-picker').value = hoy;
+                DateController.updateDisplay();
+
+                await this.switch(turnoActual);
             }
         };
 
@@ -1180,15 +1305,49 @@
         // DATE CONTROLLER
         // =============================================
         const DateController = {
-            init() {
-                const picker = document.getElementById('date-picker');
-                picker.value = State.selectedDate;
+            picker: null,
+            display: null,
 
-                picker.addEventListener('change', async (e) => {
+            init() {
+                this.picker = document.getElementById('date-picker');
+                this.display = document.getElementById('date-display');
+                this.picker.value = State.selectedDate;
+                this.updateDisplay();
+
+                // Date change handler
+                this.picker.addEventListener('change', async (e) => {
                     State.selectedDate = e.target.value;
-                    Utils.showToast(`Fecha: ${e.target.value}`, 'info');
+                    this.updateDisplay();
                     await TableRenderer.loadAndRender();
                 });
+
+                // Navigation buttons
+                document.getElementById('date-prev').addEventListener('click', () => this.navigate(-1));
+                document.getElementById('date-next').addEventListener('click', () => this.navigate(1));
+                document.getElementById('date-today').addEventListener('click', () => this.goToToday());
+            },
+
+            updateDisplay() {
+                const date = new Date(State.selectedDate + 'T12:00:00');
+                const options = { weekday: 'short', day: 'numeric', month: 'short' };
+                this.display.textContent = date.toLocaleDateString('es-ES', options);
+            },
+
+            async navigate(days) {
+                const current = new Date(State.selectedDate);
+                current.setDate(current.getDate() + days);
+                State.selectedDate = current.toISOString().split('T')[0];
+                this.picker.value = State.selectedDate;
+                this.updateDisplay();
+                await TableRenderer.loadAndRender();
+            },
+
+            async goToToday() {
+                State.selectedDate = new Date().toISOString().split('T')[0];
+                this.picker.value = State.selectedDate;
+                this.updateDisplay();
+                await TableRenderer.loadAndRender();
+                Utils.showToast('Fecha: Hoy', 'info');
             }
         };
 
@@ -1216,6 +1375,8 @@
             pollInterval: null,
             POLL_DELAY: 4000,  // 4 seconds
             lastDataHash: null,
+            localPositions: {},  // Cache local positions during drag
+            isDragging: false,   // Flag to skip sync during drag
 
             init() {
                 this.startPolling();
@@ -1236,9 +1397,39 @@
                 }
             },
 
+            // Llamar cuando empieza el drag
+            setDragging(tableId, x, y) {
+                this.isDragging = true;
+                this.localPositions[tableId] = { x, y };
+            },
+
+            // Llamar cuando termina el drag
+            clearDragging(tableId) {
+                this.isDragging = false;
+                // Mantener la posición local por un momento para evitar race condition
+                setTimeout(() => {
+                    delete this.localPositions[tableId];
+                }, this.POLL_DELAY + 1000);
+            },
+
             async syncTables() {
+                // No sincronizar mientras se arrastra
+                if (this.isDragging) {
+                    console.log('[SYNC] Skipping - drag in progress');
+                    return;
+                }
+
                 try {
                     const tables = await API.getTables(State.selectedDate, State.currentShift);
+
+                    // Aplicar posiciones locales sobre las de la DB
+                    tables.forEach(t => {
+                        if (this.localPositions[t.id]) {
+                            t.x = this.localPositions[t.id].x;
+                            t.y = this.localPositions[t.id].y;
+                        }
+                    });
+
                     const newHash = JSON.stringify(tables);
 
                     // Solo actualizar si hay cambios

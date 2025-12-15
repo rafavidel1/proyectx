@@ -15,17 +15,17 @@ ON CONFLICT (username) DO NOTHING;
 -- ==============================================
 -- MESAS (T1 a T10)
 -- ==============================================
-INSERT INTO mesas (id_mesa, capacidad, tipo, pos_x, pos_y) VALUES
-    ('T1', 2, 'interior', 80, 80),
-    ('T2', 2, 'interior', 220, 80),
-    ('T3', 4, 'interior', 360, 80),
-    ('T4', 4, 'interior', 500, 80),
-    ('T5', 4, 'interior', 80, 220),
-    ('T6', 6, 'interior', 220, 220),
-    ('T7', 6, 'interior', 360, 220),
-    ('T8', 4, 'terraza', 80, 80),
-    ('T9', 4, 'terraza', 220, 80),
-    ('T10', 6, 'terraza', 360, 80)
+INSERT INTO mesas (id_mesa, capacidad, tipo, zona, pos_x, pos_y) VALUES
+    ('T1', 2, 'normal', 'interior', 80, 80),
+    ('T2', 2, 'normal', 'interior', 220, 80),
+    ('T3', 4, 'normal', 'interior', 360, 80),
+    ('T4', 4, 'normal', 'interior', 500, 80),
+    ('T5', 4, 'normal', 'interior', 80, 220),
+    ('T6', 6, 'normal', 'interior', 220, 220),
+    ('T7', 6, 'normal', 'interior', 360, 220),
+    ('T8', 4, 'normal', 'terraza', 80, 80),
+    ('T9', 4, 'normal', 'terraza', 220, 80),
+    ('T10', 6, 'normal', 'terraza', 360, 80)
 ON CONFLICT (id_mesa) DO NOTHING;
 
 -- ==============================================

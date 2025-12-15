@@ -93,9 +93,9 @@ def reserve_table(id_mesa: str, customer_name: str, time: str,
     
     return crear_reserva(id_mesa, customer_name, fecha, time, people, telefono, notas)
 
-def occupy_table(id_mesa: str) -> Dict[str, Any]:
+def occupy_table(id_mesa: str, fecha: str = None, turno: str = None) -> Dict[str, Any]:
     """Ocupa una mesa sin reserva (walk-in)."""
-    return ocupar_mesa_sin_reserva(id_mesa)
+    return ocupar_mesa_sin_reserva(id_mesa, fecha, turno)
 
 def mark_as_occupied(id_mesa: str, fecha: str = None) -> Dict[str, Any]:
     """Marca una mesa reservada como ocupada."""

@@ -132,7 +132,10 @@ def api_reserve_table(table_id):
 @api_bp.post('/tables/<table_id>/occupy')
 def api_occupy_table(table_id):
     """POST /api/tables/:id/occupy - Ocupar mesa (walk-in)"""
-    result = occupy_table(table_id)
+    data = request.get_json(silent=True) or {}
+    fecha = data.get('fecha')
+    turno = data.get('turno')
+    result = occupy_table(table_id, fecha, turno)
     status = 200 if result.get('success') else 400
     return jsonify(result), status
 
