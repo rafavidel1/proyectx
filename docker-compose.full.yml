@@ -1,0 +1,92 @@
+# ============================================================
+# STACK COMPLETO: PostgreSQL + n8n + Floor Plan Dashboard
+# ============================================================
+# Estructura de directorios recomendada:
+#   /home/ubuntu/Desarrollo/stack/
+#   ├── docker-compose.yml  (este archivo)
+#   ├── .env                (variables de entorno)
+#   ├── dashboard/          (código del dashboard - clonar aquí)
+#   ├── postgres_data/      (datos PostgreSQL - se crea automáticamente)
+#   └── n8n_data/           (datos n8n - se crea automáticamente)
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # POSTGRESQL DATABASE
+  # ==========================================
+  postgres:
+    image: postgres:16
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-paco}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-paco}
+      POSTGRES_DB: ${DB_NAME:-database}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-paco}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # N8N WORKFLOW AUTOMATION
+  # ==========================================
+  n8n:
+    image: n8nio/n8n
+    container_name: n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=Europe/Madrid
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ==========================================
+  # FLOOR PLAN DASHBOARD
+  # ==========================================
+  dashboard:
+    build: ./dashboard
+    container_name: floor_plan_dashboard
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-dev-secret-key-change-in-production}
+      - FLASK_DEBUG=false
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-database}
+      - DB_USER=${DB_USER:-paco}
+      - DB_PASSWORD=${DB_PASSWORD:-paco}
+      - HORA_CORTE_TURNO=${HORA_CORTE_TURNO:-17:00:00}
+      - HORA_INICIO_COMIDA=${HORA_INICIO_COMIDA:-12:00:00}
+      - HORA_FIN_COMIDA=${HORA_FIN_COMIDA:-16:00:00}
+      - HORA_INICIO_CENA=${HORA_INICIO_CENA:-20:00:00}
+      - HORA_FIN_CENA=${HORA_FIN_CENA:-23:00:00}
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  app_network:
+    driver: bridge
