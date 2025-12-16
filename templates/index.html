@@ -1910,96 +1910,187 @@
         };
 
         // =============================================
-        // ZOOM CONTROLLER
+        // ZOOM CONTROLLER - Improved for Mobile
         // =============================================
         const ZoomController = {
             scale: 1,
             minScale: 0.5,
-            maxScale: 2,
+            maxScale: 3,
             step: 0.1,
             wrapper: null,
             container: null,
+            floorPlan: null,
+            
+            // Pinch tracking
             lastPinchDistance: 0,
-
+            lastPinchCenter: { x: 0, y: 0 },
+            isPinching: false,
+            
+            // Pan tracking
+            isPanning: false,
+            lastPanX: 0,
+            lastPanY: 0,
+            
             init() {
                 this.wrapper = document.getElementById('floor-plan-wrapper');
                 this.container = document.getElementById('map-container');
-
+                this.floorPlan = document.getElementById('floor-plan');
+                
                 // Restore saved zoom level
                 const savedScale = localStorage.getItem('floorPlanZoom');
                 if (savedScale) {
                     this.scale = parseFloat(savedScale);
                     this.applyZoom();
                 }
-
+                
                 // Button controls
                 document.getElementById('zoom-in').addEventListener('click', () => this.zoomIn());
                 document.getElementById('zoom-out').addEventListener('click', () => this.zoomOut());
                 document.getElementById('zoom-reset').addEventListener('click', () => this.reset());
-
+                
                 // Mouse wheel zoom (with Ctrl key)
                 this.container.addEventListener('wheel', (e) => {
                     if (e.ctrlKey) {
                         e.preventDefault();
+                        const rect = this.container.getBoundingClientRect();
+                        const centerX = e.clientX - rect.left;
+                        const centerY = e.clientY - rect.top;
+                        
                         if (e.deltaY < 0) {
-                            this.zoomIn();
+                            this.zoomAt(centerX, centerY, 0.1);
                         } else {
-                            this.zoomOut();
+                            this.zoomAt(centerX, centerY, -0.1);
                         }
                     }
                 }, { passive: false });
-
-                // Pinch to zoom (mobile)
-                this.container.addEventListener('touchstart', (e) => {
-                    if (e.touches.length === 2) {
-                        e.preventDefault();
-                        this.lastPinchDistance = this.getPinchDistance(e.touches);
-                    }
-                }, { passive: false });
-
-                this.container.addEventListener('touchmove', (e) => {
-                    if (e.touches.length === 2) {
-                        e.preventDefault();
-                        const newDistance = this.getPinchDistance(e.touches);
-                        const delta = newDistance - this.lastPinchDistance;
-
-                        if (Math.abs(delta) > 10) {
-                            if (delta > 0) {
-                                this.zoomIn(0.05);
-                            } else {
-                                this.zoomOut(0.05);
-                            }
-                            this.lastPinchDistance = newDistance;
-                        }
-                    }
-                }, { passive: false });
+                
+                // Touch events for pinch zoom and pan
+                this.container.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+                this.container.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+                this.container.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
             },
-
+            
+            handleTouchStart(e) {
+                if (e.touches.length === 2) {
+                    // Pinch start
+                    e.preventDefault();
+                    this.isPinching = true;
+                    this.lastPinchDistance = this.getPinchDistance(e.touches);
+                    this.lastPinchCenter = this.getPinchCenter(e.touches);
+                } else if (e.touches.length === 1 && this.scale > 1) {
+                    // Pan start (only when zoomed in)
+                    this.isPanning = true;
+                    this.lastPanX = e.touches[0].clientX;
+                    this.lastPanY = e.touches[0].clientY;
+                }
+            },
+            
+            handleTouchMove(e) {
+                if (e.touches.length === 2 && this.isPinching) {
+                    // Pinch zoom
+                    e.preventDefault();
+                    
+                    const newDistance = this.getPinchDistance(e.touches);
+                    const delta = newDistance - this.lastPinchDistance;
+                    
+                    if (Math.abs(delta) > 5) {
+                        const center = this.getPinchCenter(e.touches);
+                        const rect = this.container.getBoundingClientRect();
+                        const centerX = center.x - rect.left + this.container.scrollLeft;
+                        const centerY = center.y - rect.top + this.container.scrollTop;
+                        
+                        const zoomDelta = delta > 0 ? 0.03 : -0.03;
+                        this.zoomAt(centerX, centerY, zoomDelta);
+                        
+                        this.lastPinchDistance = newDistance;
+                        this.lastPinchCenter = center;
+                    }
+                } else if (e.touches.length === 1 && this.isPanning && this.scale > 1) {
+                    // Pan when zoomed
+                    e.preventDefault();
+                    
+                    const deltaX = this.lastPanX - e.touches[0].clientX;
+                    const deltaY = this.lastPanY - e.touches[0].clientY;
+                    
+                    this.container.scrollLeft += deltaX;
+                    this.container.scrollTop += deltaY;
+                    
+                    this.lastPanX = e.touches[0].clientX;
+                    this.lastPanY = e.touches[0].clientY;
+                }
+            },
+            
+            handleTouchEnd(e) {
+                if (e.touches.length < 2) {
+                    this.isPinching = false;
+                }
+                if (e.touches.length === 0) {
+                    this.isPanning = false;
+                }
+            },
+            
             getPinchDistance(touches) {
                 const dx = touches[0].clientX - touches[1].clientX;
                 const dy = touches[0].clientY - touches[1].clientY;
                 return Math.sqrt(dx * dx + dy * dy);
             },
-
+            
+            getPinchCenter(touches) {
+                return {
+                    x: (touches[0].clientX + touches[1].clientX) / 2,
+                    y: (touches[0].clientY + touches[1].clientY) / 2
+                };
+            },
+            
+            zoomAt(centerX, centerY, delta) {
+                const oldScale = this.scale;
+                this.scale = Math.max(this.minScale, Math.min(this.maxScale, this.scale + delta));
+                
+                if (this.scale !== oldScale) {
+                    // Adjust scroll to keep zoom centered
+                    const scaleRatio = this.scale / oldScale;
+                    const newScrollLeft = centerX * scaleRatio - (centerX - this.container.scrollLeft);
+                    const newScrollTop = centerY * scaleRatio - (centerY - this.container.scrollTop);
+                    
+                    this.applyZoom();
+                    
+                    // Scroll to maintain zoom center
+                    this.container.scrollLeft = Math.max(0, newScrollLeft);
+                    this.container.scrollTop = Math.max(0, newScrollTop);
+                }
+            },
+            
             zoomIn(customStep) {
                 const step = customStep || this.step;
                 this.scale = Math.min(this.maxScale, this.scale + step);
                 this.applyZoom();
             },
-
+            
             zoomOut(customStep) {
                 const step = customStep || this.step;
                 this.scale = Math.max(this.minScale, this.scale - step);
                 this.applyZoom();
             },
-
+            
             reset() {
                 this.scale = 1;
                 this.applyZoom();
+                this.container.scrollLeft = 0;
+                this.container.scrollTop = 0;
             },
-
+            
             applyZoom() {
+                // Use width/height scaling for proper scroll behavior
+                const baseWidth = 800;
+                const baseHeight = 600;
+                
+                this.wrapper.style.width = `${baseWidth * this.scale}px`;
+                this.wrapper.style.minWidth = `${baseWidth * this.scale}px`;
+                this.wrapper.style.height = `${baseHeight * this.scale}px`;
+                this.wrapper.style.minHeight = `${baseHeight * this.scale}px`;
                 this.wrapper.style.transform = `scale(${this.scale})`;
+                this.wrapper.style.transformOrigin = '0 0';
+                
                 document.getElementById('zoom-level').textContent = `${Math.round(this.scale * 100)}%`;
                 localStorage.setItem('floorPlanZoom', this.scale);
             }
