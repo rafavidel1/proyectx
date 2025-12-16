@@ -1,0 +1,3 @@
+docker-compose.full.yml
+migrate-to-stack.sh
+.env.full.example
