@@ -15,17 +15,22 @@
 
 ---
 
-## N8N (1º Flujo)
+## N8N
 
 ### Cambiar credenciales
 
 * **PostgreSQL** : solo si no se reutiliza la misma base de datos.
 * **Telnyx/Twilio** : necesario para configurar un nuevo número móvil.
 
-### Nodos
+### Nodos 1º Flujo
 
 * **Webhook** : usar la **Production URL** para todo.
 * **Conf_cliente2** : actualizar los campos  **From** , **To** y  **message** .
+
+### Nodos 2º Flujo
+
+* **IfTelefono:**
+* **MensajeReservaCancelada**
 
 ---
 
